@@ -1,0 +1,1116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AIS Trainer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=IBM+Plex+Mono:wght@500;600&family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+/* Layout: sticky worksheet header, one view at a time; ≥900px = controls column | worksheet column, below = single stacked column. */
+:root{
+  --paper:#F3F5F9; --surface:#FFFFFF; --ink:#131A2B; --ink-2:#5A647A; --rule:#DCE1EA;
+  --pen:#1E4FD8; --pen-ink:#FFFFFF; --pen-soft:#E3EAFC;
+  --hi:#FFE14D; --hi-ink:#1B1600;
+  --ok:#0B7354; --ok-bg:#DFF1E8; --warn:#93550A; --warn-bg:#FBECCF; --bad:#B3202F; --bad-bg:#FBDFE3; --na:#EBEEF3;
+  --f-disp:"Archivo","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Source Sans 3",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --top: 64px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0D111A; --surface:#151B27; --ink:#E6EAF2; --ink-2:#98A2B8; --rule:#283043;
+  --pen:#86A6FF; --pen-ink:#0A0F1E; --pen-soft:#1C2745; --hi:#FFE14D; --hi-ink:#1B1600;
+  --ok:#5ED1A6; --ok-bg:#10302A; --warn:#F0B866; --warn-bg:#36280F; --bad:#FF8C99; --bad-bg:#3D161E; --na:#1B2230;
+  color-scheme:dark }}
+:root[data-theme="dark"]{
+  --paper:#0D111A; --surface:#151B27; --ink:#E6EAF2; --ink-2:#98A2B8; --rule:#283043;
+  --pen:#86A6FF; --pen-ink:#0A0F1E; --pen-soft:#1C2745; --hi:#FFE14D; --hi-ink:#1B1600;
+  --ok:#5ED1A6; --ok-bg:#10302A; --warn:#F0B866; --warn-bg:#36280F; --bad:#FF8C99; --bad-bg:#3D161E; --na:#1B2230;
+  color-scheme:dark }
+
+[hidden]{display:none!important}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:400 15px/1.5 var(--f-body);-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
+button,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--pen);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+h1,h2,h3{text-wrap:balance;margin:0}
+
+/* ---------- header ---------- */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--paper);border-bottom:1px solid var(--rule)}
+.top-in{max-width:1180px;margin:0 auto;padding:10px 16px;display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px}
+.brand{display:flex;align-items:baseline;gap:7px;font-family:var(--f-disp);font-stretch:72%;line-height:1}
+.brand b{font-weight:900;font-size:26px;letter-spacing:.01em}
+.brand span{font-weight:500;font-size:15px;color:var(--ink-2);letter-spacing:.14em;text-transform:uppercase}
+.tabs{display:flex;gap:2px;padding:3px;background:var(--na);border-radius:10px}
+.tab{border:0;background:none;padding:7px 16px;border-radius:8px;font-weight:600;color:var(--ink-2);min-height:36px}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.me{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink-2)}
+.rank{font-family:var(--f-mono);font-weight:600;font-size:13px;color:var(--pen-ink);background:var(--pen);border-radius:6px;padding:3px 7px}
+.xpbar{width:64px;height:6px;border-radius:3px;background:var(--na);overflow:hidden}
+.xpbar i{display:block;height:100%;background:var(--pen);width:0;transition:width .4s}
+.me .num{font-variant-numeric:tabular-nums}
+@media (max-width:640px){
+  .tabs{order:3;width:100%}
+  .tab{flex:1}
+  .me .num{display:none}
+}
+
+main{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:16px 56px}
+
+/* ---------- shared controls ---------- */
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+.seg{display:inline-flex;padding:3px;gap:2px;background:var(--na);border-radius:10px}
+.seg button{border:0;background:none;padding:6px 14px;border-radius:8px;font-weight:600;color:var(--ink-2);min-height:34px}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+select{appearance:none;-webkit-appearance:none;background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23889'/%3E%3C/svg%3E") no-repeat right 10px center;border:1px solid var(--rule);border-radius:8px;padding:7px 28px 7px 10px;min-height:38px}
+.btn{border:1px solid var(--rule);background:var(--surface);border-radius:9px;padding:8px 14px;font-weight:600;min-height:40px}
+.btn.primary{background:var(--pen);border-color:var(--pen);color:var(--pen-ink)}
+.btn.ghost{background:none}
+.btn:disabled{opacity:.5;cursor:default}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:16px}
+.eyebrow{font-family:var(--f-mono);font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+
+/* folds (collapsed by default, one open per group) */
+.fold{border-top:1px solid var(--rule)}
+.fold>summary,.t-sub>summary,.wi>summary,.topic>summary{list-style:none;cursor:pointer}
+summary::-webkit-details-marker{display:none}
+.fold>summary{display:flex;align-items:center;justify-content:space-between;padding:12px 2px;font-weight:600;min-height:44px}
+.fold>summary::after,.topic>summary::after{content:"";width:8px;height:8px;border-right:2px solid var(--ink-2);border-bottom:2px solid var(--ink-2);transform:rotate(45deg);transition:transform .2s;flex:none;margin-left:12px}
+.fold[open]>summary::after,.topic[open]>summary::after{transform:rotate(-135deg)}
+.fold-in{padding:0 2px 14px}
+
+/* ---------- split layout ---------- */
+.split{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}
+@media (min-width:900px){
+  .split{grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);align-items:start}
+  .split .col-a{position:sticky;top:calc(var(--top) + env(safe-area-inset-top,0px));max-height:calc(100vh - var(--top) - 16px);overflow:auto}
+}
+.col-a,.col-b{min-width:0;display:flex;flex-direction:column;gap:12px}
+
+/* ---------- worksheet ---------- */
+.sheet-wrap{overflow-x:auto;border:1px solid var(--rule);border-radius:12px;background:var(--surface)}
+table.sheet{width:100%;min-width:320px;border-collapse:collapse;table-layout:fixed;font-family:var(--f-mono);font-size:12.5px;font-variant-numeric:tabular-nums}
+.sheet thead th{font-family:var(--f-body);font-weight:700;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-2);padding:6px 2px;text-align:center}
+.sheet thead tr:first-child th{font-family:var(--f-disp);font-stretch:75%;font-size:15px;letter-spacing:.04em;color:var(--ink);padding-top:9px}
+.sheet td,.sheet tbody th{height:24px;padding:0;text-align:center;border-top:1px solid var(--surface)}
+.sheet tbody th.seg{font-weight:600;background:var(--paper);color:var(--ink);width:17%}
+.sheet tr.rs td,.sheet tr.rs th{border-top:2px solid var(--rule)}
+.sheet td.ok{background:var(--ok-bg);color:var(--ok)}
+.sheet td.mid{background:var(--warn-bg);color:var(--warn);font-weight:600}
+.sheet td.low{background:var(--bad-bg);color:var(--bad);font-weight:600}
+.sheet td.nk{background:var(--na)}
+.sheet td.c+td.c{border-left:1px solid var(--surface)}
+.sheet td.mk{box-shadow:inset 0 -3px 0 var(--pen)}
+.sheet th.seg.nli{background:var(--pen);color:var(--pen-ink)}
+.sheet td button{all:unset;display:block;width:100%;height:100%;line-height:24px;cursor:pointer;text-align:center}
+.sheet td button:focus-visible{outline:2px solid var(--pen);outline-offset:-2px}
+@media (pointer:coarse){.sheet td,.sheet tbody th{height:30px}.sheet td button{line-height:30px}}
+.sheet tfoot td{padding:10px 8px;border-top:2px solid var(--rule)}
+.sac{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.tog{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--rule);background:var(--paper);border-radius:8px;padding:5px 10px;font-family:var(--f-body);font-size:13px;min-height:34px}
+.tog b{font-family:var(--f-mono)}
+.tog.on b{color:var(--ok)} .tog.off b{color:var(--bad)}
+.sac .mini{margin-left:auto;font-family:var(--f-body);font-size:13px;color:var(--ink-2)}
+.sac .mini b{font-family:var(--f-mono);color:var(--ink)}
+
+.legend-row{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:13px;color:var(--ink-2)}
+.sw{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:6px}
+.sw.ok{background:var(--ok-bg);border:1px solid var(--ok)}
+.sw.mid{background:var(--warn-bg);border:1px solid var(--warn)}
+.sw.low{background:var(--bad-bg);border:1px solid var(--bad)}
+.sw.nk{background:var(--na);border:1px solid var(--rule)}
+.sw.mk{background:var(--surface);box-shadow:inset 0 -3px 0 var(--pen);border:1px solid var(--rule)}
+.sw.nli{background:var(--pen)}
+
+/* ---------- play ---------- */
+.cc-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.streak{font-family:var(--f-mono);font-size:12px;font-weight:600;color:var(--ink-2)}
+.streak.hot{color:var(--warn)}
+.dots{display:flex;gap:5px;list-style:none;padding:0;margin:12px 0 14px}
+.dots li{flex:1;height:5px;border-radius:3px;background:var(--na)}
+.dots li.now{background:var(--pen)}
+.dots li.ok{background:var(--ok)}
+.dots li.bad{background:var(--bad)}
+.q{font-family:var(--f-disp);font-stretch:78%;font-weight:800;font-size:26px;line-height:1.1}
+.q .side{font-weight:500;color:var(--pen)}
+.hint{margin:6px 0 0;color:var(--ink-2);font-size:14px}
+.pick{margin-top:14px;display:flex;flex-direction:column;gap:8px}
+.lv-row{display:grid;grid-template-columns:18px 1fr;gap:8px;align-items:start}
+.lv-tag{font-family:var(--f-disp);font-stretch:75%;font-weight:800;color:var(--ink-2);padding-top:9px;font-size:14px}
+.lv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:5px}
+.opt{border:1px solid var(--rule);background:var(--paper);border-radius:8px;min-height:40px;font-family:var(--f-mono);font-weight:600;font-size:13px;padding:4px 6px}
+.opt:hover:not(:disabled){border-color:var(--pen)}
+.opt:disabled{cursor:default}
+.opt.right{background:var(--ok-bg);border-color:var(--ok);color:var(--ok)}
+.opt.wrong{background:var(--bad-bg);border-color:var(--bad);color:var(--bad)}
+.opt.dim{opacity:.45}
+.big-opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+.big-opts .opt{min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.big-opts .opt b{font-family:var(--f-disp);font-stretch:75%;font-size:24px;font-weight:850;line-height:1}
+.big-opts .opt small{font-family:var(--f-body);font-weight:400;font-size:12px;color:inherit;opacity:.8}
+.fb{margin-top:14px;border-radius:10px;padding:12px 14px;background:var(--paper);border:1px solid var(--rule)}
+.fb.ok{border-color:var(--ok)} .fb.bad{border-color:var(--bad)}
+.fb-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:0 0 4px;font-weight:700}
+.fb.ok .fb-h{color:var(--ok)} .fb.bad .fb-h{color:var(--bad)}
+.gain{font-family:var(--f-mono);font-size:12px;color:var(--pen)}
+.fb p{margin:0}
+.fb-act{display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap}
+.meta{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;font-size:13px;color:var(--ink-2)}
+.sum-big{font-family:var(--f-disp);font-stretch:70%;font-weight:900;font-size:64px;line-height:1;margin:10px 0 2px}
+.sum-big small{font-size:28px;color:var(--ink-2);font-weight:600}
+.ans{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px}
+.ans td{padding:6px 4px;border-top:1px solid var(--rule)}
+.ans td:nth-child(n+2){font-family:var(--f-mono);text-align:right;white-space:nowrap}
+.ans .x{color:var(--bad);text-decoration:line-through}
+.ans .v{color:var(--ok)}
+.drill{max-width:640px;margin:0 auto}
+.dr-opts{display:grid;gap:8px;margin-top:14px}
+.dr-opts.two{grid-template-columns:1fr 1fr}
+.dr-opts .opt{font-family:var(--f-body);font-weight:600;font-size:15px;text-align:left;padding:10px 12px;min-height:46px}
+.dr-opts.two .opt{text-align:center;font-family:var(--f-mono)}
+.dr-q{font-family:var(--f-disp);font-stretch:85%;font-weight:700;font-size:22px;line-height:1.2;margin-top:12px}
+
+/* ---------- lab ---------- */
+.res-top{display:grid;grid-template-columns:auto 1fr 1fr;gap:10px;align-items:stretch}
+.ais-badge{border-radius:12px;padding:8px 16px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:84px}
+.ais-badge small,.kv small{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.85}
+.ais-badge b{font-family:var(--f-disp);font-stretch:70%;font-weight:900;font-size:52px;line-height:1}
+.ais-A{background:var(--bad-bg);color:var(--bad)}
+.ais-B,.ais-C{background:var(--warn-bg);color:var(--warn)}
+.ais-D,.ais-E{background:var(--ok-bg);color:var(--ok)}
+.kv{border:1px solid var(--rule);border-radius:12px;padding:8px 12px;display:flex;flex-direction:column;justify-content:center;min-width:0}
+.kv small{color:var(--ink-2)}
+.kv b{font-family:var(--f-disp);font-stretch:78%;font-weight:800;font-size:26px;line-height:1.1}
+.lvt{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}
+.lvt th{text-align:left;font-weight:600;color:var(--ink-2);padding:5px 4px;border-top:1px solid var(--rule)}
+.lvt thead th{border-top:0;font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-align:right}
+.lvt td{text-align:right;font-family:var(--f-mono);font-weight:600;padding:5px 4px;border-top:1px solid var(--rule)}
+.lvt td.na{color:var(--ink-2);font-weight:500}
+.path{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:12px;font-size:13px}
+.path .st{border:1px solid var(--rule);border-radius:999px;padding:3px 10px;background:var(--paper)}
+.path .st b{font-family:var(--f-mono)}
+.path .ar{color:var(--ink-2)}
+.path .end{background:var(--pen);color:var(--pen-ink);border-color:var(--pen);font-weight:700}
+.scn{margin:10px 0 0;font-size:13px;color:var(--ink-2)}
+.brush{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.brush .lab{font-size:13px;color:var(--ink-2);margin-right:4px}
+.brush button{border:1px solid var(--rule);background:var(--surface);border-radius:8px;min-width:40px;min-height:38px;font-family:var(--f-mono);font-weight:600;padding:0 10px}
+.brush button[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--rule);background:var(--paper);border-radius:999px;padding:6px 12px;font-size:13.5px;font-weight:600;min-height:36px}
+.chip:hover{border-color:var(--pen)}
+.why{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;font-size:14px}
+.why b{font-weight:700}
+.bulk{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;align-items:end}
+.bulk label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--ink-2)}
+.bulk select{width:100%;color:var(--ink)}
+.row-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.scores{width:100%;border-collapse:collapse;font-size:14px}
+.scores td{padding:5px 4px;border-top:1px solid var(--rule)}
+.scores td:last-child{text-align:right;font-family:var(--f-mono);font-weight:600}
+.scores td:last-child small{color:var(--ink-2);font-weight:500}
+
+/* ---------- learn ---------- */
+.learn{max-width:760px;margin:0 auto}
+.learn-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.hl-btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--rule);background:var(--surface);border-radius:999px;padding:7px 14px;font-weight:600;min-height:40px}
+.hl-btn i{width:14px;height:14px;border-radius:3px;background:var(--na);border:1px solid var(--rule)}
+.hl-btn[aria-pressed="true"]{border-color:var(--hi);background:var(--hi);color:var(--hi-ink)}
+.hl-btn[aria-pressed="true"] i{background:var(--hi-ink);border-color:var(--hi-ink)}
+.steps{display:flex;flex-wrap:wrap;gap:6px}
+.steps button{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--rule);background:var(--surface);border-radius:999px;padding:4px 12px 4px 4px;font-size:13px;font-weight:600;min-height:36px}
+.steps button span{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--pen);color:var(--pen-ink);font-family:var(--f-mono);font-size:12px}
+.grp{margin-top:26px}
+.grp>h2{font-family:var(--f-mono);font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);margin-bottom:4px}
+.topic{border-top:1px solid var(--rule);scroll-margin-top:calc(var(--top) + 60px)}
+.topic:last-child{border-bottom:1px solid var(--rule)}
+.topic>summary{display:flex;align-items:center;gap:14px;padding:14px 2px;min-height:52px}
+.topic .k{font-family:var(--f-mono);font-size:11.5px;font-weight:600;color:var(--ink-2);width:58px;flex:none;letter-spacing:.04em}
+.topic .tt{font-family:var(--f-disp);font-stretch:80%;font-weight:750;font-size:21px;line-height:1.15;flex:1}
+.topic[open]>summary .tt{color:var(--pen)}
+.core{display:grid;grid-template-columns:58px 1fr;gap:14px;padding:0 2px 12px}
+.lbl{font-family:var(--f-mono);font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--pen);padding-top:4px}
+.core p{margin:0;font-size:16.5px;line-height:1.55;max-width:62ch}
+.t-sub{margin-left:72px;border-top:1px dashed var(--rule)}
+.t-sub>summary{display:flex;align-items:center;gap:8px;padding:10px 0;font-family:var(--f-mono);font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);min-height:42px}
+.t-sub>summary::before{content:"+";display:inline-grid;place-items:center;width:20px;height:20px;border-radius:5px;border:1px solid var(--rule);font-size:13px;color:var(--ink)}
+.t-sub[open]>summary::before{content:"−"}
+.t-sub[open]>summary{color:var(--ink)}
+.sub-in{padding:0 0 16px;max-width:62ch}
+.sub-in p{margin:0 0 10px}
+.sub-in ul{margin:0 0 10px;padding-left:18px}
+.sub-in li{margin-bottom:4px}
+.t-sub:last-of-type{margin-bottom:10px}
+.wi{border:1px solid var(--rule);border-radius:10px;margin-bottom:8px;background:var(--surface)}
+.wi>summary{padding:10px 12px;font-weight:600;display:flex;gap:10px;align-items:baseline}
+.wi>summary::before{content:"?";flex:none;font-family:var(--f-mono);font-size:12px;color:var(--pen)}
+.wi[open]>summary::before{content:"→"}
+.wi p{margin:0;padding:0 12px 12px 32px}
+.tbl-wrap{overflow-x:auto;margin:0 0 10px}
+.tbl{border-collapse:collapse;width:100%;font-size:14px}
+.tbl th{text-align:left;font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);padding:6px 6px}
+.tbl td{padding:6px;border-top:1px solid var(--rule);vertical-align:top}
+.tbl td:first-child{font-family:var(--f-mono);font-weight:600;white-space:nowrap}
+.flow{display:flex;flex-direction:column;gap:4px;margin:6px 0 12px}
+.fl-q{border:1px solid var(--rule);border-radius:10px;padding:8px 12px;background:var(--paper);font-size:14px}
+.fl-a{display:flex;justify-content:space-between;gap:8px;padding:0 12px;font-family:var(--f-mono);font-size:13px;color:var(--ink-2)}
+.fl-a b{color:var(--pen)}
+.try{margin-top:4px}
+mark{background:none;color:inherit;font-weight:600}
+body.hl mark{background:var(--hi);color:var(--hi-ink);border-radius:3px;padding:0 .15em;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+@media (max-width:560px){
+  .core{grid-template-columns:1fr;gap:4px}
+  .t-sub{margin-left:0}
+  .topic .k{width:auto;min-width:44px}
+  .res-top{grid-template-columns:auto 1fr}
+  .res-top .kv:last-child{grid-column:1/-1}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+
+<header class="top" id="top">
+  <div class="top-in">
+    <div class="brand"><b>AIS</b><span>Trainer</span></div>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button class="tab" role="tab" data-view="play" aria-selected="true">Play</button>
+      <button class="tab" role="tab" data-view="lab" aria-selected="false">Lab</button>
+      <button class="tab" role="tab" data-view="learn" aria-selected="false">Learn</button>
+    </nav>
+    <div class="me" title="Your rank climbs the spine: every 60 XP moves you one segment up, from S4-5 to C1.">
+      <span class="rank" id="rank">S4-5</span>
+      <span class="xpbar"><i id="xpbar"></i></span>
+      <span class="num" id="xp">0 XP</span>
+    </div>
+  </div>
+</header>
+
+<main>
+<!-- ================= PLAY ================= -->
+<section class="view" id="v-play" aria-label="Play">
+  <div class="bar">
+    <div class="seg" id="mode">
+      <button data-mode="case" aria-pressed="true">Classify</button>
+      <button data-mode="drill" aria-pressed="false">Drill</button>
+    </div>
+    <label id="diff-wrap"><span class="sr">Difficulty</span>
+      <select id="diff"><option value="easy">Easy · symmetric</option><option value="mixed" selected>Mixed</option><option value="hard">Hard · with ZPP</option></select>
+    </label>
+    <label id="cat-wrap" hidden><span class="sr">Topic</span>
+      <select id="cat">
+        <option value="all">All topics</option>
+        <option value="muscles">Key muscles</option>
+        <option value="dermatomes">Sensory points</option>
+        <option value="grades">Grading</option>
+        <option value="rules">Classification rules</option>
+        <option value="ais">AIS grades</option>
+        <option value="nonkey">Non-key muscles</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="split" id="case-ui">
+    <div class="col-a"><div class="card" id="case-card"></div></div>
+    <div class="col-b">
+      <div class="meta" id="case-meta"></div>
+      <div class="sheet-wrap" id="case-sheet"></div>
+      <details class="fold" data-group="play-side">
+        <summary>Legend</summary>
+        <div class="fold-in legend-row">
+          <span><i class="sw ok"></i>Normal (2 · 5)</span>
+          <span><i class="sw mid"></i>Altered (1 · 3–4)</span>
+          <span><i class="sw low"></i>Absent / weak (0 · 0–2)</span>
+          <span><i class="sw nk"></i>No key muscle</span>
+          <span><i class="sw mk"></i>Level found</span>
+          <span><i class="sw nli"></i>NLI</span>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <div id="drill-ui" hidden><div class="card drill" id="drill-card"></div></div>
+</section>
+
+<!-- ================= LAB ================= -->
+<section class="view" id="v-lab" aria-label="Lab" hidden>
+  <div class="split">
+    <div class="col-a">
+      <div class="card" id="lab-res"></div>
+      <div class="brush" id="brush" role="group" aria-label="Tap mode">
+        <span class="lab">Tap sets</span>
+        <button data-b="cycle" aria-pressed="true">Cycle</button>
+        <button data-b="0" aria-pressed="false">0</button>
+        <button data-b="1" aria-pressed="false">1</button>
+        <button data-b="2" aria-pressed="false">2</button>
+        <button data-b="3" aria-pressed="false">3</button>
+        <button data-b="4" aria-pressed="false">4</button>
+        <button data-b="5" aria-pressed="false">5</button>
+      </div>
+      <div>
+        <details class="fold" data-group="lab"><summary>Why this result</summary><div class="fold-in"><ol class="why" id="lab-why"></ol></div></details>
+        <details class="fold" data-group="lab"><summary>Scenarios</summary><div class="fold-in"><div class="chips" id="presets"></div></div></details>
+        <details class="fold" data-group="lab"><summary>Bulk edit</summary>
+          <div class="fold-in">
+            <div class="bulk">
+              <label for="bk-from">From segment down<select id="bk-from"></select></label>
+              <label for="bk-side">Side<select id="bk-side"><option value="RL">Both</option><option value="R">Right</option><option value="L">Left</option></select></label>
+              <label for="bk-field">Field<select id="bk-field"><option value="s">LT + PP</option><option value="lt">Light touch</option><option value="pp">Pin prick</option><option value="m">Motor</option></select></label>
+              <label for="bk-val">Value<select id="bk-val"><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></label>
+            </div>
+            <div class="row-acts">
+              <button class="btn primary" id="bk-go">Apply</button>
+              <button class="btn" id="lab-normal">Reset to normal</button>
+              <button class="btn" id="lab-rand">Random case</button>
+            </div>
+          </div>
+        </details>
+        <details class="fold" data-group="lab"><summary>Scores</summary><div class="fold-in" id="lab-scores"></div></details>
+      </div>
+    </div>
+    <div class="col-b"><div class="sheet-wrap" id="lab-sheet"></div></div>
+  </div>
+</section>
+
+<!-- ================= LEARN ================= -->
+<section class="view learn" id="v-learn" aria-label="Learn" hidden>
+  <div class="learn-bar">
+    <div class="steps" aria-label="Classification steps">
+      <button data-open="t-sl"><span>1</span>Sensory</button>
+      <button data-open="t-ml"><span>2</span>Motor</button>
+      <button data-open="t-nli"><span>3</span>NLI</button>
+      <button data-open="t-comp"><span>4</span>Complete?</button>
+      <button data-open="t-ais"><span>5</span>AIS</button>
+      <button data-open="t-zpp"><span>6</span>ZPP</button>
+    </div>
+    <button class="hl-btn" id="hl-btn" aria-pressed="false"><i></i>Highlight key points</button>
+  </div>
+
+  <div class="grp">
+    <h2>The exam</h2>
+
+    <details class="topic" id="t-overview" data-group="topics">
+      <summary><span class="k">Overview</span><span class="tt">The worksheet at a glance</span></summary>
+      <div class="core"><span class="lbl">Core</span><p>Per side: <mark>10 key muscles graded 0–5</mark> and <mark>28 dermatomes scored 0–2</mark> for light touch and pin prick, plus the anorectal exam (VAC, DAP). The output is levels, an AIS grade and the ZPP.</p></div>
+      <details class="t-sub"><summary>Body</summary><div class="sub-in">
+        <p>The exam is done supine. The worksheet mirrors the patient: right side on the left of the page, left side on the right, segments C2 to S4-5 down the middle.</p>
+        <p>Classification runs in a fixed order, and each step uses only what came before: <mark>sensory levels → motor levels → NLI → complete or incomplete → AIS grade → ZPP</mark>.</p>
+        <p>The subscores (UEMS, LEMS, LT, PP totals) track change over time. They never set the AIS grade.</p>
+      </div></details>
+      <details class="t-sub"><summary>What ifs</summary><div class="sub-in">
+        <details class="wi"><summary>What if part of the exam can't be done?</summary><p>Score that item NT. If it blocks a step, record that result as ND (not determinable).</p></details>
+        <details class="wi"><summary>What if the patient had a nerve problem before the injury?</summary><p>Tag the affected scores with an asterisk and explain in the comments box whether they count as normal for classification.</p></details>
+      </div></details>
+    </details>
+
+    <details class="topic" id="t-motor" data-group="topics">
+      <summary><span class="k">Grading</span><span class="tt">Muscle grades 0–5</span></summary>
+      <div class="core"><span class="lbl">Core</span><p><mark>Grade 3 = full range against gravity.</mark> It's the threshold that defines the motor level and separates AIS C from D. Grade 5 is normal.</p></div>
+      <details class="t-sub"><summary>Body</summary><div class="sub-in">
+        <div class="tbl-wrap"><table class="tbl">
+          <tr><th>Grade</th><th>Meaning</th></tr>
+          <tr><td>0</td><td>Total paralysis</td></tr>
+          <tr><td>1</td><td>Palpable or visible contraction</td></tr>
+          <tr><td>2</td><td>Active movement, full range of motion with gravity eliminated</td></tr>
+          <tr><td>3</td><td>Active movement, <mark>full range against gravity</mark></td></tr>
+          <tr><td>4</td><td>Full range against gravity and moderate resistance in a muscle-specific position</td></tr>
+          <tr><td>5</td><td>Normal: full range against gravity and full resistance, as expected in an unimpaired person</td></tr>
+          <tr><td>NT</td><td>Not testable: immobilization, severe pain, amputation, or contracture over 50% of normal range</td></tr>
+          <tr><td>0*–4*</td><td>Non-SCI condition present; explain in comments</td></tr>
+        </table></div>
+      </div></details>
+      <details class="t-sub"><summary>What ifs</summary><div class="sub-in">
+        <details class="wi"><summary>What if the muscle moves only part of the range against gravity?</summary><p>It's not a 3. Full range is required. If it completes the full range with gravity eliminated, it's a 2.</p></details>
+        <details class="wi"><summary>What if a contracture blocks more than half the range?</summary><p>Score NT. The grade can't be judged.</p></details>
+        <details class="wi"><summary>What if weakness comes from an old brachial plexus injury?</summary><p>Score what you find with an asterisk (e.g. 3*) and state in comments whether it should be treated as normal for classification.</p></details>
+      </div></details>
+    </details>
+
+    <details class="topic" id="t-sens" data-group="topics">
+      <summary><span class="k">Grading</span><span class="tt">Sensory scores 0–2</span></summary>
+      <div class="core"><span class="lbl">Core</span><p>Each dermatome gets two scores, light touch and pin prick: <mark>0 absent, 1 altered, 2 normal</mark>. A dermatome is intact only when <mark>both are 2</mark>.</p></div>
+      <details class="t-sub"><summary>Body</summary><div class="sub-in">
+        <p>Sensation is compared with the face (cheek) as the normal reference.</p>
+        <ul>
+          <li><b>1 = altered</b>: decreased, impaired, or hypersensitive.</li>
+          <li><b>Pin prick</b> tests sharp versus dull. <mark>If the patient can't reliably tell sharp from dull, PP = 0.</mark></li>
+          <li><b>Light touch</b> uses a cotton tip stroked over no more than 1 cm.</li>
+        </ul>
+        <p>Each modality totals 56 per side, 112 for both.</p>
+      </div></details>
+      <details class="t-sub"><summary>What ifs</summary><div class="sub-in">
+        <details class="wi"><summary>What if touch is normal but the pin feels dull?</summary><p>LT 2, PP 0 (or 1 if sharp is felt but different). The dermatome is not intact, so the sensory level stops above it.</p></details>
+        <details class="wi"><summary>What if light touch feels painful?</summary><p>Hypersensitivity is altered sensation: score 1.</p></details>
+        <details class="wi"><summary>What if the dermatome is under a cast?</summary><p>Score NT.</p></details>
+      </div></details>
+    </details>
+
+    <details class="topic" id="t-keym" data-group="topics">
+      <summary><span class="k">Exam</span><span class="tt">Key muscles</span></summary>
+      <div class="core"><span class="lbl">Core</span><p>Ten per side: five in the arm <mark>C5–T1</mark>, five in the leg <mark>L2–S1</mark>. Each limb maxes at 25.</p></div>
+      <details class="t-sub"><summary>Body</summary><div class="sub-in">
+        <div class="tbl-wrap"><table class="tbl">
+          <tr><th>Root</th><th>Key muscle group</th></tr>
+          <tr><td>C5</td><td>Elbow flexors</td></tr>
+          <tr><td>C6</td><td>Wrist extensors</td></tr>
+          <tr><td>C7</td><td>Elbow extensors</td></tr>
+          <tr><td>C8</td><td>Finger flexors (distal phalanx of the middle finger)</td></tr>
+          <tr><td>T1</td><td>Finger abductors (little finger)</td></tr>
+          <tr><td>L2</td><td>Hip flexors</td></tr>
+          <tr><td>L3</td><td>Knee extensors</td></tr>
+          <tr><td>L4</td><td>Ankle dorsiflexors</td></tr>
+          <tr><td>L5</td><td>Long toe extensors</td></tr>
+          <tr><td>S1</td><td>Ankle plantar flexors</td></tr>
+        </table></div>
+        <p>Upper limbs make the UEMS (max 50), lower limbs the LEMS (max 50).</p>
+      </div></details>
+      <details class="t-sub"><summary>What ifs</summary><div class="sub-in">
+        <details class="wi"><summary>What about C2–C4, T2–L1 and S2–S5?</summary><p>No testable key muscle. <mark>The motor level there is taken from the sensory level.</mark></p></details>
+      </div></details>
+    </details>
+
+    <details class="topic" id="t-keys" data-group="topics">
+      <summary><span class="k">Exam</span><span class="tt">Key sensory points</span></summary>
+      <div class="core"><span class="lbl">Core</span><p>One point per dermatome, <mark>28 per side</mark> from C2 to S4-5. Landmarks: <mark>T4 nipple, T10 umbilicus, T12 inguinal ligament</mark>.</p></div>
+      <details class="t-sub"><summary>Body</summary><div class="sub-in">
+        <div class="tbl-wrap"><table class="tbl" id="sp-table"><tr><th>Level</th><th>Point</th></tr></table></div>
+      </div></details>
+      <details class="t-sub"><summary>What ifs</summary><div class="sub-in">
+        <details class="wi"><summary>What if T7–T9 are hard to find?</summary><p>On the midclavicular line, split the T6 (xiphisternum) to T10 (umbilicus) distance into quarters: T7, T8, T9.</p></details>
+      </div></details>
+    </details>
+
+    <details class="topic" id="t-anal" data-group="topics">
+      <summary><span class="k">Exam</span><span class="tt">Anorectal exam: VAC and DAP</span></summary>
+      <div class="core"><span class="lbl">Core</span><p><mark>VAC</mark> (voluntary anal contraction) is motor sacral sparing. <mark>DAP</mark> (deep anal pressure) is sensory sacral sparing. Each is Yes or No.</p></div>
+      <details class="t-sub"><summary>Body</summary><div class="sub-in">
+        <p>VAC: the external anal sphincter contracts around the examiner's finger on command. DAP: the patient reliably feels firm pressure on the anorectal wall.</p>
+        <p>Together with S4-5 light touch and pin prick at the perianal skin, they decide whether the injury is complete.</p>
+      </div></details>
+      <details class="t-sub"><summary>What ifs</summary><div class="sub-in">
+        <details class="wi"><summary>What if only DAP is present?</summary><p>The injury is incomplete: at least AIS B.</p></details>
+        <details class="wi"><summary>What if VAC is present?</summary><p>Motor incomplete. At least AIS C, whatever the limbs show.</p></details>
+      </div></details>
+    </details>
+  </div>
+
+  <div class="grp">
+    <h2>Classification</h2>
+
+    <details class="topic" id="t-sl" data-group="topics">
+      <summary><span class="k">Step 1</span><span class="tt">Sensory level</span></summary>
+      <div class="core"><span class="lbl">Core</span><p><mark>The most caudal dermatome with LT 2 and PP 2</mark>, with every dermatome above also normal. One per side.</p></div>
+      <details class="t-sub"><summary>Body</summary><div class="sub-in">
+        <p>Walk down from C2. The first dermatome with any score below 2, in either modality, ends the walk. The sensory level is the dermatome just above it.</p>
+        <ul>
+          <li>C2 already abnormal → sensory level <b>C1</b>.</li>
+          <li>Everything normal through S4-5 → <b>INT</b> (intact).</li>
+        </ul>
+      </div></details>
+      <details class="t-sub"><summary>What ifs</summary><div class="sub-in">
+        <details class="wi"><summary>What if a normal dermatome appears below an abnormal one?</summary><p>Ignore it. The level is set by the first abnormality from the top.</p></details>
+        <details class="wi"><summary>What if right and left differ?</summary><p>Record both. That's why there are four levels (sensory and motor, each side).</p></details>
+      </div></details>
+    </details>
+
+    <details class="topic" id="t-ml" data-group="topics">
+      <summary><span class="k">Step 2</span><span class="tt">Motor level</span></summary>
+      <div class="core"><span class="lbl">Core</span><p><mark>The lowest key muscle graded 3 or more, with all key muscles above graded 5.</mark> Where there's no key muscle, use the sensory level.</p></div>
+      <details class="t-sub"><summary>Body</summary><div class="sub-in">
+        <p>Walk the key muscles down. A 5: keep going. A 3 or 4: that's the level. A 0–2: the level is the segment above.</p>
+        <p>In regions without a myotome (C1–C4, T2–L1, S2–S5) <mark>motor level = sensory level</mark>, provided the testable motor function above it is normal.</p>
+        <ul>
+          <li>C5 5, C6 4, C7 1 → motor level C6.</li>
+          <li>C5 3, C6 5 → motor level C5 (C6 doesn't count: C5 isn't 5).</li>
+        </ul>
+      </div></details>
+      <details class="t-sub"><summary>What ifs</summary><div class="sub-in">
+        <details class="wi"><summary>What if C5 is 2 and C2–C4 sensation is intact?</summary><p>Motor level C4. C4 counts as normal because its sensation is intact.</p></details>
+        <details class="wi"><summary>What if all arm muscles are 5 and the sensory level is T6?</summary><p>Motor level T6. In the trunk, motor follows sensation.</p></details>
+        <details class="wi"><summary>What if L2 is 4 but L1 sensation is impaired?</summary><p>The walk stops at L1, so the motor level is T12.</p></details>
+        <button class="btn try" data-try="c4c">Try C4 central cord in Lab</button>
+      </div></details>
+    </details>
+
+    <details class="topic" id="t-nli" data-group="topics">
+      <summary><span class="k">Step 3</span><span class="tt">Neurological level of injury</span></summary>
+      <div class="core"><span class="lbl">Core</span><p><mark>The most rostral of the four levels</mark>: sensory right, sensory left, motor right, motor left.</p></div>
+      <details class="t-sub"><summary>Body</summary><div class="sub-in">
+        <p>The NLI is the most caudal segment with normal sensation and antigravity (≥3) strength on both sides, with normal function above. Taking the highest of the four levels gives exactly that.</p>
+      </div></details>
+      <details class="t-sub"><summary>What ifs</summary><div class="sub-in">
+        <details class="wi"><summary>SL R C6, SL L C7, ML R C6, ML L C5. NLI?</summary><p>C5, the most rostral of the four.</p></details>
+        <details class="wi"><summary>Why a single NLI when the sides differ?</summary><p>The AIS C/D count uses key muscles below one NLI. The four side levels are still recorded.</p></details>
+      </div></details>
+    </details>
+
+    <details class="topic" id="t-comp" data-group="topics">
+      <summary><span class="k">Step 4</span><span class="tt">Complete or incomplete</span></summary>
+      <div class="core"><span class="lbl">Core</span><p>Complete only if <mark>VAC No, DAP No, and every S4-5 score is 0</mark> (LT and PP, both sides). Any sacral sparing makes it incomplete.</p></div>
+      <details class="t-sub"><summary>Body</summary><div class="sub-in">
+        <p>S4-5 is the most caudal segment. Any preserved function there means some pathways cross the lesion, so the injury is incomplete no matter how little the limbs show.</p>
+      </div></details>
+      <details class="t-sub"><summary>What ifs</summary><div class="sub-in">
+        <details class="wi"><summary>What if S4-5 pin prick is 1 on one side only?</summary><p>Incomplete.</p></details>
+        <details class="wi"><summary>What if S4-5 is NT and there's no VAC or DAP?</summary><p>Completeness can't be decided: ND.</p></details>
+        <button class="btn try" data-try="t6a">Try T6 complete in Lab, then toggle DAP</button>
+      </div></details>
+    </details>
+
+    <details class="topic" id="t-ais" data-group="topics">
+      <summary><span class="k">Step 5</span><span class="tt">AIS grade A–E</span></summary>
+      <div class="core"><span class="lbl">Core</span><p><mark>A</mark> complete · <mark>B</mark> sensory only · <mark>C</mark> motor, under half ≥3 · <mark>D</mark> motor, half or more ≥3 · <mark>E</mark> normal.</p></div>
+      <details class="t-sub"><summary>Body</summary><div class="sub-in">
+        <div class="flow">
+          <div class="fl-q"><b>Complete?</b> VAC No, DAP No, all S4-5 = 0</div>
+          <div class="fl-a"><span>Yes → <b>A</b></span><span>No ↓</span></div>
+          <div class="fl-q"><b>Motor complete?</b> No VAC and no motor function more than 3 levels below the motor level on either side</div>
+          <div class="fl-a"><span>Yes → <b>B</b></span><span>No ↓</span></div>
+          <div class="fl-q"><b>Half or more</b> of key muscles below the single NLI graded ≥3?</div>
+          <div class="fl-a"><span>No → <b>C</b></span><span>Yes → <b>D</b></span></div>
+          <div class="fl-q">Sensation and motor normal everywhere, with a documented prior SCI → <b>E</b></div>
+        </div>
+        <ul>
+          <li><b>B</b>: sensory but not motor function below the NLI including S4-5, and <mark>no motor function more than three levels below the motor level</mark> on either side.</li>
+          <li><b>C</b>: motor function preserved: VAC, or sensory sparing plus motor function more than three levels below the motor level on a side (key or non-key muscles).</li>
+          <li><b>D</b>: motor incomplete as C, with at least half of key muscles below the NLI at grade 3 or more.</li>
+        </ul>
+      </div></details>
+      <details class="t-sub"><summary>What ifs</summary><div class="sub-in">
+        <details class="wi"><summary>C7 injury, S4-5 sensation spared, and the right ankle plantar flexors flicker (1)?</summary><p>S1 is far more than 3 levels below C7, so it's motor incomplete: AIS C.</p></details>
+        <details class="wi"><summary>Motor function only 2 levels below the motor level?</summary><p>Still AIS B. It must be more than 3 levels below.</p></details>
+        <details class="wi"><summary>How do I count for D at NLI C6?</summary><p>Below C6: C7, C8, T1, L2–S1 = 8 per side, 16 total. D needs 8 or more at grade ≥3.</p></details>
+        <details class="wi"><summary>The patient looks like AIS B. Anything else to test?</summary><p>Yes. <mark>Test non-key muscles more than 3 levels below the motor level on each side</mark> to separate B from C.</p></details>
+        <details class="wi"><summary>Normal exam with no history of SCI?</summary><p>No AIS grade. E applies only to someone with a documented SCI who has recovered.</p></details>
+        <div class="row-acts">
+          <button class="btn try" data-try="c6b">C6 · B</button>
+          <button class="btn try" data-try="c7c">C7 · toe flicker</button>
+          <button class="btn try" data-try="l1d">L1 · D</button>
+        </div>
+      </div></details>
+    </details>
+
+    <details class="topic" id="t-zpp" data-group="topics">
+      <summary><span class="k">Step 6</span><span class="tt">Zone of partial preservation</span></summary>
+      <div class="core"><span class="lbl">Core</span><p>Only when <mark>S4-5 function is absent</mark>: the most caudal segment with any function, recorded per side for sensory and motor.</p></div>
+      <details class="t-sub"><summary>Body</summary><div class="sub-in">
+        <ul>
+          <li><b>Motor ZPP</b> applies when VAC is absent. It's the most caudal key muscle with any movement, never above the motor level.</li>
+          <li><b>Sensory ZPP</b> applies when DAP is absent and S4-5 has no LT or PP on that side. It's the most caudal dermatome with any sensation, never above the sensory level.</li>
+          <li>If sacral sparing exists, that ZPP is <b>NA</b>.</li>
+        </ul>
+      </div></details>
+      <details class="t-sub"><summary>What ifs</summary><div class="sub-in">
+        <details class="wi"><summary>Can an AIS B injury have a ZPP?</summary><p>A motor ZPP, yes, if VAC is absent. The sensory ZPP is NA because sacral sensation is present.</p></details>
+        <details class="wi"><summary>What if nothing works below the level?</summary><p>ZPP equals the level itself.</p></details>
+        <button class="btn try" data-try="c5a">Try C5 complete in Lab</button>
+      </div></details>
+    </details>
+  </div>
+
+  <div class="grp">
+    <h2>Reference</h2>
+
+    <details class="topic" id="t-scores" data-group="topics">
+      <summary><span class="k">Scores</span><span class="tt">Subscores and totals</span></summary>
+      <div class="core"><span class="lbl">Core</span><p><mark>UEMS 50 · LEMS 50 · LT 112 · PP 112.</mark> They track recovery; they don't set the grade.</p></div>
+      <details class="t-sub"><summary>Body</summary><div class="sub-in">
+        <p>UER and UEL are 25 each, LER and LEL 25 each. LT and PP are 56 per side. Motor is split into upper and lower limbs because a combined 100-point total hides which limb changed.</p>
+      </div></details>
+      <details class="t-sub"><summary>What ifs</summary><div class="sub-in">
+        <details class="wi"><summary>What if one muscle is NT?</summary><p>That subscore and its total can't be calculated.</p></details>
+      </div></details>
+    </details>
+
+    <details class="topic" id="t-nonkey" data-group="topics">
+      <summary><span class="k">Exam</span><span class="tt">Non-key muscles</span></summary>
+      <div class="core"><span class="lbl">Core</span><p>Used in an <mark>apparent AIS B</mark>: test non-key muscles more than 3 levels below the motor level on each side to separate B from C.</p></div>
+      <details class="t-sub"><summary>Body</summary><div class="sub-in">
+        <div class="tbl-wrap"><table class="tbl" id="nk-table"><tr><th>Root</th><th>Movement</th></tr></table></div>
+      </div></details>
+      <details class="t-sub"><summary>What ifs</summary><div class="sub-in">
+        <details class="wi"><summary>Do non-key muscles change the motor level?</summary><p>No. They only decide B versus C.</p></details>
+      </div></details>
+    </details>
+
+    <details class="topic" id="t-nd" data-group="topics">
+      <summary><span class="k">Notation</span><span class="tt">NT, ND and the asterisk</span></summary>
+      <div class="core"><span class="lbl">Core</span><p><mark>NT</mark> = a single item couldn't be tested. <mark>ND</mark> = a classification result can't be determined. <mark>*</mark> = a non-SCI condition affects the score.</p></div>
+      <details class="t-sub"><summary>Body</summary><div class="sub-in">
+        <p>Any of the sensory, motor and neurological levels, the AIS grade, and the ZPP can be ND when NT scores block the step. Starred scores need a comment saying whether they count as normal for classification.</p>
+      </div></details>
+      <details class="t-sub"><summary>What ifs</summary><div class="sub-in">
+        <details class="wi"><summary>NT below the sensory level. Is the level ND?</summary><p>No. The level is set by the first abnormality above the NT segment, so it's still determined.</p></details>
+      </div></details>
+    </details>
+  </div>
+</section>
+</main>
+
+<script>
+/*CORE*/
+const SEG=['C1','C2','C3','C4','C5','C6','C7','C8','T1','T2','T3','T4','T5','T6','T7','T8','T9','T10','T11','T12','L1','L2','L3','L4','L5','S1','S2','S3','S4-5'];
+const INT=29, N=29;
+const KEY={4:'Elbow flexors',5:'Wrist extensors',6:'Elbow extensors',7:'Finger flexors',8:'Finger abductors',21:'Hip flexors',22:'Knee extensors',23:'Ankle dorsiflexors',24:'Long toe extensors',25:'Ankle plantar flexors'};
+const KEYS=[4,5,6,7,8,21,22,23,24,25];
+const nm=i=>i==null?'NA':i>=INT?'INT':SEG[i];
+const span=(a,b)=>a===b?SEG[a]:SEG[a]+'–'+SEG[b];
+function side(){const s={lt:[],pp:[],m:[]};for(let i=0;i<N;i++){s.lt.push(2);s.pp.push(2);s.m.push(KEY[i]?5:null)}return s}
+function normalExam(){return{R:side(),L:side(),vac:true,dap:true}}
+const clone=x=>JSON.parse(JSON.stringify(x));
+const intact=(s,i)=>s.lt[i]===2&&s.pp[i]===2;
+
+function sensLevel(s){
+  for(let i=1;i<=28;i++) if(!intact(s,i)){
+    if(i===1) return {lvl:0,why:`C2 is already abnormal (LT ${s.lt[1]}, PP ${s.pp[1]}), so the sensory level is C1.`};
+    return {lvl:i-1,why:`${span(1,i-1)} ${i===2?'is':'are'} 2/2. ${SEG[i]} has LT ${s.lt[i]}, PP ${s.pp[i]}, so the last intact dermatome is ${SEG[i-1]}.`};
+  }
+  return {lvl:INT,why:'All 28 dermatomes score 2 for LT and PP: intact (INT).'};
+}
+function motLevel(s){
+  for(let i=1;i<=28;i++){
+    if(KEY[i]){
+      const g=s.m[i]; if(g===5) continue;
+      const mm=`${SEG[i]} ${KEY[i].toLowerCase()}`;
+      if(g>=3) return {lvl:i,why:`${mm} = ${g}: at least 3, and everything above is normal, so motor level = ${SEG[i]}.`};
+      return {lvl:i-1,why:`${mm} = ${g}: below 3. Motor level is the segment above, ${SEG[i-1]}${KEY[i-1]?' (graded 5)':', which has no key muscle and counts as normal because its sensation is intact'}.`};
+    }
+    if(intact(s,i)) continue;
+    return {lvl:i-1,why:`${SEG[i]} has no key muscle, so motor follows sensation there. ${SEG[i]} sensation is impaired, so motor level = ${SEG[i-1]}.`};
+  }
+  return {lvl:INT,why:'All key muscles are 5 and all non-myotome segments are intact: INT.'};
+}
+function classify(ex){
+  const sR=sensLevel(ex.R), sL=sensLevel(ex.L), mR=motLevel(ex.R), mL=motLevel(ex.L);
+  const nli=Math.min(sR.lvl,sL.lvl,mR.lvl,mL.lvl);
+  const s45={R:ex.R.lt[28]+ex.R.pp[28], L:ex.L.lt[28]+ex.L.pp[28]};
+  const sacSens=ex.dap||s45.R>0||s45.L>0;
+  const complete=!ex.vac&&!sacSens;
+  const allNormal=[ex.R,ex.L].every(s=>{for(let i=1;i<=28;i++){if(!intact(s,i))return false;if(KEY[i]&&s.m[i]<5)return false}return true});
+  const far=(s,ml)=>KEYS.filter(k=>k>ml+3&&s.m[k]>0);
+  const fR=far(ex.R,mR.lvl), fL=far(ex.L,mL.lvl);
+  const motorInc=!complete&&(ex.vac||fR.length>0||fL.length>0);
+  const kb=KEYS.filter(k=>k>nli);
+  const gr=[...kb.map(k=>ex.R.m[k]),...kb.map(k=>ex.L.m[k])];
+  const n3=gr.filter(g=>g>=3).length;
+  const half=gr.length===0||n3*2>=gr.length;
+  const ais=allNormal?'E':complete?'A':!motorInc?'B':half?'D':'C';
+
+  const zS=S=>{const s=ex[S],sl=(S==='R'?sR:sL).lvl;if(ex.dap||s.lt[28]>0||s.pp[28]>0||sl>=INT)return null;let z=sl;for(let i=sl+1;i<=27;i++)if(s.lt[i]>0||s.pp[i]>0)z=i;return z};
+  const zM=S=>{const s=ex[S],ml=(S==='R'?mR:mL).lvl;if(ex.vac||ml>=INT)return null;let z=ml;KEYS.forEach(k=>{if(k>ml&&s.m[k]>0)z=Math.max(z,k)});return z};
+  const zpp={sR:zS('R'),sL:zS('L'),mR:zM('R'),mL:zM('L')};
+
+  const spare=[];
+  if(ex.vac)spare.push('VAC present');
+  if(ex.dap)spare.push('DAP present');
+  ['R','L'].forEach(S=>{const s=ex[S];if(s.lt[28]>0)spare.push(`${S} S4-5 LT ${s.lt[28]}`);if(s.pp[28]>0)spare.push(`${S} S4-5 PP ${s.pp[28]}`)});
+  const compWhy=complete?'VAC No, DAP No, and S4-5 LT and PP are 0 on both sides: no sacral sparing, so complete.':`Sacral sparing: ${spare.join(', ')}. Any one of these makes the injury incomplete.`;
+  let aisWhy;
+  if(ais==='E')aisWhy='Every sensory and motor score is normal. E applies only with a documented prior SCI.';
+  else if(ais==='A')aisWhy='Complete injury, so AIS A.';
+  else if(ais==='B')aisWhy=`Incomplete, but no VAC and no key muscle with function more than 3 levels below the motor level (R below ${nm(Math.min(mR.lvl+3,28))}, L below ${nm(Math.min(mL.lvl+3,28))}). Sensory incomplete: AIS B.`;
+  else{
+    const how=ex.vac?'VAC present':`motor function more than 3 levels below the motor level (${[...fR.map(k=>'R '+SEG[k]),...fL.map(k=>'L '+SEG[k])].join(', ')})`;
+    aisWhy=`Motor incomplete: ${how}. Below NLI ${nm(nli)}, ${n3} of ${gr.length} key muscles are ≥3, which is ${half?'at least half: AIS D':'less than half: AIS C'}.`;
+  }
+  const zWhy=[
+    ex.vac?'Motor ZPP is NA because VAC is present.':`Motor ZPP R ${nm(zpp.mR)}, L ${nm(zpp.mL)}: the most caudal key muscle with any movement, or the motor level if none.`,
+    ex.dap?'Sensory ZPP is NA because DAP is present.':`Sensory ZPP R ${nm(zpp.sR)}, L ${nm(zpp.sL)}: the most caudal dermatome with any sensation (NA on a side with S4-5 sensation).`
+  ].join(' ');
+  const sum=(s,ks)=>ks.reduce((a,k)=>a+s.m[k],0);
+  const ss=(s,f)=>{let t=0;for(let i=1;i<=28;i++)t+=s[f][i];return t};
+  const UE=[4,5,6,7,8], LE=[21,22,23,24,25];
+  const totals={UER:sum(ex.R,UE),UEL:sum(ex.L,UE),LER:sum(ex.R,LE),LEL:sum(ex.L,LE),LTR:ss(ex.R,'lt'),LTL:ss(ex.L,'lt'),PPR:ss(ex.R,'pp'),PPL:ss(ex.L,'pp')};
+  return {sl:{R:sR.lvl,L:sL.lvl},ml:{R:mR.lvl,L:mL.lvl},nli,complete,ais,zpp,totals,
+    path:{sacral:!complete,motorInc,n3,nk:gr.length,half},
+    why:{slR:sR.why,slL:sL.why,mlR:mR.why,mlL:mL.why,
+      nli:`Most rostral of SL R ${nm(sR.lvl)}, SL L ${nm(sL.lvl)}, ML R ${nm(mR.lvl)}, ML L ${nm(mL.lvl)}: ${nm(nli)}.`,
+      comp:compWhy,ais:aisWhy,zpp:zWhy}};
+}
+
+/* presets */
+function setBelow(ex,sides,from,v){for(const S of sides){const s=ex[S];for(let i=from;i<=28;i++){if(v.lt!=null)s.lt[i]=v.lt;if(v.pp!=null)s.pp[i]=v.pp;if(v.m!=null&&KEY[i])s.m[i]=v.m}}}
+function setM(ex,sides,o){for(const S of sides)for(const k in o)ex[S].m[k]=o[k]}
+const RL=['R','L'];
+const PRESETS={
+  e:{name:'Normal exam',f:ex=>{}},
+  c5a:{name:'C5 · complete',f:ex=>{setBelow(ex,RL,5,{lt:0,pp:0,m:0});ex.R.lt[5]=1;ex.L.lt[5]=1;setM(ex,RL,{4:4,5:1});ex.vac=false;ex.dap=false}},
+  c6b:{name:'C6 · sensory incomplete',f:ex=>{setBelow(ex,RL,6,{lt:0,pp:0,m:0});setM(ex,RL,{5:4,6:1});ex.R.lt[28]=1;ex.L.lt[28]=1;ex.vac=false;ex.dap=false}},
+  c4c:{name:'C4 · central cord',f:ex=>{setBelow(ex,RL,4,{lt:1,pp:1});setM(ex,RL,{4:2,5:2,6:1,7:0,8:0,21:4,22:4,23:3,24:3,25:2});ex.vac=true;ex.dap=true}},
+  t6a:{name:'T6 · complete',f:ex=>{setBelow(ex,RL,14,{lt:0,pp:0,m:0});ex.R.lt[14]=1;ex.R.pp[14]=1;ex.vac=false;ex.dap=false}},
+  t8bs:{name:'T8 · Brown-Séquard',f:ex=>{setBelow(ex,['R'],16,{lt:1});setM(ex,['R'],{21:1,22:2,23:1,24:1,25:2});setBelow(ex,['L'],17,{pp:0});ex.vac=true;ex.dap=true}},
+  l1d:{name:'L1 · walking',f:ex=>{setBelow(ex,RL,21,{lt:1,pp:1});setM(ex,RL,{21:4,22:3,23:3,24:2,25:3});ex.vac=true;ex.dap=true}},
+  c7c:{name:'C7 · toe flicker',f:ex=>{setBelow(ex,RL,7,{lt:0,pp:0,m:0});setM(ex,RL,{6:3});ex.L.pp[28]=1;ex.R.m[25]=1;ex.vac=false;ex.dap=false}}
+};
+function preset(k){const ex=normalExam();PRESETS[k].f(ex);return ex}
+
+/* case generator */
+const rnd=n=>Math.floor(Math.random()*n);
+const pick=a=>a[rnd(a.length)];
+function buildSide(s,sl,ais){
+  const z=ais==='A'?1+rnd(3):0;
+  for(let i=sl+1;i<=28;i++){
+    let lt,pp;
+    if(ais==='A'){if(i-sl<=z){lt=pick([0,1,1]);pp=pick([0,1])}else{lt=0;pp=0}}
+    else if(ais==='B'){lt=pick([0,1,1]);pp=pick([0,0,1])}
+    else if(ais==='C'){lt=pick([0,1,1,2]);pp=pick([0,1,1])}
+    else{lt=pick([1,1,2,2]);pp=pick([0,1,2])}
+    if(i===sl+1&&lt===2&&pp===2)pp=1;
+    s.lt[i]=lt;s.pp[i]=pp;
+  }
+  KEYS.filter(k=>k<=sl).forEach(k=>s.m[k]=5);
+  if(KEY[sl]&&Math.random()<.6)s.m[sl]=3+rnd(2);
+  KEYS.filter(k=>k>sl).forEach((k,j)=>{
+    let g;
+    if(ais==='A'||ais==='B')g=(j===0&&k<=sl+3)?pick([0,1,2]):0;
+    else if(ais==='C')g=j===0?pick([0,1,2]):pick([0,0,1,2,2,3]);
+    else g=j===0?pick([2,3,4]):pick([2,3,3,4,4,5]);
+    s.m[k]=g;
+  });
+}
+function genCase(diff){
+  for(let t=0;t<40;t++){
+    const ais=diff==='easy'?pick(['A','A','B','C','D']):pick(['A','B','C','D']);
+    const base=pick([3,4,4,5,5,6,7,8,10,12,13,15,17,19,20,21]);
+    const ex={R:side(),L:side(),vac:false,dap:false};
+    const off=diff==='easy'?0:diff==='hard'?pick([-2,-1,0,1,2]):pick([0,0,-1,1]);
+    buildSide(ex.R,base,ais);
+    if(diff==='easy')ex.L=clone(ex.R);else buildSide(ex.L,Math.max(2,Math.min(22,base+off)),ais);
+    for(const S of RL){ex[S].lt[28]=0;ex[S].pp[28]=0}
+    if(ais==='B'){const r=rnd(3);if(r===0)ex.R.lt[28]=1;else if(r===1){ex.R.pp[28]=1;ex.L.pp[28]=1}else ex.dap=true}
+    if(ais==='C'){ex.vac=base>=19||Math.random()<.5;ex.dap=Math.random()<.5;ex.R.lt[28]=1;ex.L.lt[28]=1;if(!ex.vac)ex.R.m[25]=Math.max(ex.R.m[25],pick([1,2]))}
+    if(ais==='D'){ex.vac=true;ex.dap=true;for(const S of RL){ex[S].lt[28]=pick([1,2]);ex[S].pp[28]=pick([1,2])}}
+    const c=classify(ex);
+    if(c.ais==='E'||c.nli>=24||c.nli<2)continue;
+    return ex;
+  }
+  return preset('c6b');
+}
+/*END CORE*/
+
+/* ---------- utilities ---------- */
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const store={get(k,d){try{const v=localStorage.getItem('aisT.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('aisT.'+k,JSON.stringify(v))}catch(e){}}};
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]]}return a};
+
+/* exclusive folds: one open per data-group */
+document.addEventListener('toggle',e=>{
+  const d=e.target;if(!(d instanceof HTMLDetailsElement)||!d.open||!d.dataset.group)return;
+  $$(`details[data-group="${d.dataset.group}"]`).forEach(o=>{if(o!==d)o.open=false});
+},true);
+$$('.topic').forEach(t=>{
+  $$(':scope>.t-sub',t).forEach(d=>d.dataset.group=t.id+'-in');
+  $$('.wi',t).forEach(d=>d.dataset.group=t.id+'-wi');
+});
+
+/* ---------- stats / rank ---------- */
+const S=Object.assign({xp:0,streak:0,best:0},store.get('stats',{}));
+function award(ok,base){
+  let g=0;
+  if(ok){S.streak++;S.best=Math.max(S.best,S.streak);g=base+2*Math.min(S.streak-1,5);S.xp+=g}
+  else S.streak=0;
+  store.set('stats',S);renderMe();return g;
+}
+function renderMe(){
+  const r=Math.min(28,Math.floor(S.xp/60));
+  $('#rank').textContent=SEG[28-r];
+  $('#xpbar').style.width=(r>=28?100:(S.xp%60)/60*100)+'%';
+  $('#xp').textContent=S.xp+' XP';
+}
+
+/* ---------- views ---------- */
+function show(view){
+  $$('.view').forEach(v=>{const on=v.id==='v-'+view;if(!on&&!v.hidden)$$('details[open]',v).forEach(d=>d.open=false);v.hidden=!on});
+  $$('.tab').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.view===view)));
+  store.set('view',view);
+}
+$$('.tab').forEach(t=>t.addEventListener('click',()=>{show(t.dataset.view);window.scrollTo(0,0)}));
+function measureTop(){document.documentElement.style.setProperty('--top',$('#top').offsetHeight+'px')}
+addEventListener('resize',measureTop);
+
+/* ---------- worksheet ---------- */
+function sheetHTML(ex,o={}){
+  const ed=o.edit, mk=o.marks||{};
+  const cell=(Sd,f,i)=>{
+    const mark=(f==='m'?mk['ml'+Sd]===i:mk['sl'+Sd]===i)?' mk':'';
+    if(f==='m'&&!KEY[i])return `<td class="nk${mark}"></td>`;
+    const v=ex[Sd][f][i];
+    const cls=f==='m'?(v===5?'ok':v>=3?'mid':'low'):(v===2?'ok':v===1?'mid':'low');
+    const lab=`${Sd==='R'?'Right':'Left'} ${SEG[i]} ${f==='m'?KEY[i]:f==='lt'?'light touch':'pin prick'}`;
+    const inner=ed?`<button type="button" data-s="${Sd}" data-f="${f}" data-i="${i}" aria-label="${lab}: ${v}">${v}</button>`:`<span aria-label="${lab}: ${v}">${v}</span>`;
+    return `<td class="c ${cls}${mark}">${inner}</td>`;
+  };
+  let rows='';
+  for(let i=1;i<=28;i++){
+    rows+=`<tr class="${[8,20,25].includes(i)?'rs':''}">${cell('R','m',i)}${cell('R','lt',i)}${cell('R','pp',i)}<th scope="row" class="seg${mk.nli===i?' nli':''}">${SEG[i]}</th>${cell('L','lt',i)}${cell('L','pp',i)}${cell('L','m',i)}</tr>`;
+  }
+  const tog=k=>{const on=ex[k];const t=k==='vac'?'VAC':'DAP';
+    return ed?`<button type="button" class="tog ${on?'on':'off'}" data-tog="${k}" aria-pressed="${on}">${t} <b>${on?'Yes':'No'}</b></button>`:`<span class="tog ${on?'on':'off'}">${t} <b>${on?'Yes':'No'}</b></span>`};
+  return `<table class="sheet"><thead>
+    <tr><th colspan="3">Right</th><th></th><th colspan="3">Left</th></tr>
+    <tr><th>Motor</th><th>LT</th><th>PP</th><th>Level</th><th>LT</th><th>PP</th><th>Motor</th></tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr><td colspan="7"><div class="sac">${tog('vac')}${tog('dap')}${o.foot||''}</div></td></tr></tfoot></table>`;
+}
+
+/* ---------- PLAY: classify ---------- */
+const HINT={
+  sl:'Lowest dermatome with LT 2 and PP 2, everything above normal.',
+  ml:'Lowest key muscle ≥3 with all above 5. No key muscle? Follow sensation.',
+  nli:'Most rostral of the four levels.',
+  comp:'Any VAC, DAP, or S4-5 sensation means incomplete.',
+  ais:'Complete → A. No motor sparing → B. Then count key muscles below the NLI.',
+  zs:'Most caudal dermatome with any sensation.',
+  zm:'Most caudal key muscle with any movement, never above the motor level.'
+};
+const AIS_SUB={A:'Complete',B:'Sensory only',C:'Motor, <½ ≥3',D:'Motor, ≥½ ≥3',E:'Normal'};
+const P={diff:store.get('diff','mixed'),n:store.get('caseN',0)};
+function newCase(){
+  P.n++;store.set('caseN',P.n);
+  P.ex=genCase(P.diff);P.c=classify(P.ex);P.i=0;P.res=[];P.picked=[];P.marks={};P.gained=0;P.done=false;
+  const c=P.c,st=[
+    {k:'slR',q:'Sensory level',side:'Right',t:'lv',a:c.sl.R,why:c.why.slR,h:HINT.sl,topic:'t-sl'},
+    {k:'slL',q:'Sensory level',side:'Left',t:'lv',a:c.sl.L,why:c.why.slL,h:HINT.sl,topic:'t-sl'},
+    {k:'mlR',q:'Motor level',side:'Right',t:'lv',a:c.ml.R,why:c.why.mlR,h:HINT.ml,topic:'t-ml'},
+    {k:'mlL',q:'Motor level',side:'Left',t:'lv',a:c.ml.L,why:c.why.mlL,h:HINT.ml,topic:'t-ml'},
+    {k:'nli',q:'Neurological level',t:'lv',a:c.nli,why:c.why.nli,h:HINT.nli,topic:'t-nli'},
+    {k:'comp',q:'Complete or incomplete?',t:'comp',a:c.complete?'Complete':'Incomplete',why:c.why.comp,h:HINT.comp,topic:'t-comp'},
+    {k:'ais',q:'AIS grade',t:'ais',a:c.ais,why:c.why.ais,h:HINT.ais,topic:'t-ais'}
+  ];
+  P.steps=P.diff==='easy'?st.filter(s=>s.k!=='slL'&&s.k!=='mlL'):st;
+  if(P.diff==='hard'){
+    if(c.zpp.sR!=null)P.steps.push({k:'zsR',q:'Sensory ZPP',side:'Right',t:'lv',a:c.zpp.sR,why:c.why.zpp,h:HINT.zs,topic:'t-zpp'});
+    if(c.zpp.mR!=null)P.steps.push({k:'zmR',q:'Motor ZPP',side:'Right',t:'lv',a:c.zpp.mR,why:c.why.zpp,h:HINT.zm,topic:'t-zpp'});
+  }
+  renderCase();renderCaseSheet();
+}
+function fmtA(st,v){return st.t==='lv'?nm(v):v}
+function levelPicker(){
+  const groups=[['C',0,7],['T',8,19],['L',20,24],['S',25,28]];
+  return groups.map(([t,a,b])=>{let h='';for(let i=a;i<=b;i++)h+=`<button class="opt" data-ans="${i}">${SEG[i]}</button>`;if(t==='S')h+=`<button class="opt" data-ans="${INT}">INT</button>`;return `<div class="lv-row"><span class="lv-tag">${t}</span><div class="lv-grid">${h}</div></div>`}).join('');
+}
+function renderCase(){
+  const card=$('#case-card');
+  const dots=P.steps.map((s,j)=>`<li class="${j<P.res.length?(P.res[j]?'ok':'bad'):j===P.i?'now':''}"></li>`).join('');
+  const head=`<div class="cc-head"><span class="eyebrow">Case ${P.n}</span><span class="streak${S.streak>=3?' hot':''}">Streak ${S.streak}</span></div><ol class="dots" aria-label="Step ${Math.min(P.i+1,P.steps.length)} of ${P.steps.length}">${dots}</ol>`;
+  if(P.i>=P.steps.length){
+    const ok=P.res.filter(Boolean).length;
+    const rows=P.steps.map((s,j)=>`<tr><td>${s.q}${s.side?' '+s.side[0]:''}</td><td>${P.res[j]?`<span class="v">${fmtA(s,s.a)}</span>`:`<span class="x">${fmtA(s,P.picked[j])}</span> <span class="v">${fmtA(s,s.a)}</span>`}</td></tr>`).join('');
+    card.innerHTML=`${head}<h2 class="q">${ok===P.steps.length?'Clean sheet':'Case closed'}</h2>
+      <div class="sum-big">${ok}<small> / ${P.steps.length}</small></div>
+      <div class="gain">+${P.gained} XP</div>
+      <table class="ans">${rows}</table>
+      <div class="fb-act"><button class="btn" data-lab>Open in Lab</button><button class="btn primary" data-new>Next case</button></div>`;
+    return;
+  }
+  const st=P.steps[P.i];
+  const picker=st.t==='lv'?levelPicker():st.t==='comp'
+    ?`<div class="big-opts"><button class="opt" data-ans="Complete"><b>Complete</b><small>No sacral sparing</small></button><button class="opt" data-ans="Incomplete"><b>Incomplete</b><small>Sacral sparing</small></button></div>`
+    :`<div class="big-opts">${'ABCDE'.split('').map(l=>`<button class="opt" data-ans="${l}"><b>${l}</b><small>${AIS_SUB[l]}</small></button>`).join('')}</div>`;
+  card.innerHTML=`${head}<h2 class="q">${st.q}${st.side?` <span class="side">${st.side}</span>`:''}</h2>
+    ${P.diff==='hard'?'':`<p class="hint">${st.h}</p>`}
+    <div class="pick">${picker}</div><div class="fb" id="fb" hidden></div>`;
+}
+function renderCaseSheet(){
+  $('#case-sheet').innerHTML=sheetHTML(P.ex,{marks:P.marks});
+  $('#case-meta').innerHTML=`<span class="eyebrow">Patient worksheet</span>`;
+}
+$('#case-card').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.new!=null){newCase();$('#case-card').scrollIntoView({block:'nearest'});return}
+  if(b.dataset.lab!=null){loadLab(clone(P.ex),'Case '+P.n);show('lab');window.scrollTo(0,0);return}
+  if(b.dataset.next!=null){P.i++;renderCase();return}
+  if(b.dataset.learn){openTopic(b.dataset.learn);return}
+  if(b.dataset.ans==null||P.res.length>P.i)return;
+  const st=P.steps[P.i];
+  const v=st.t==='lv'?Number(b.dataset.ans):b.dataset.ans;
+  const ok=v===st.a;
+  P.res.push(ok);P.picked.push(v);
+  const g=award(ok,10);P.gained+=g;
+  if(P.res.length===P.steps.length&&P.res.every(Boolean)){S.xp+=20;P.gained+=20;store.set('stats',S);renderMe()}
+  $$('#case-card .opt').forEach(o=>{o.disabled=true;const ov=st.t==='lv'?Number(o.dataset.ans):o.dataset.ans;if(ov===st.a)o.classList.add('right');else if(o===b)o.classList.add('wrong');else o.classList.add('dim')});
+  const li=$$('#case-card .dots li')[P.i];if(li)li.className=ok?'ok':'bad';
+  $('#case-card .streak').textContent='Streak '+S.streak;
+  if(['slR','slL','mlR','mlL','nli'].includes(st.k)){P.marks[st.k]=st.a;renderCaseSheet()}
+  const fb=$('#fb');fb.hidden=false;fb.className='fb '+(ok?'ok':'bad');
+  fb.innerHTML=`<p class="fb-h"><span>${ok?'Correct':'Answer: '+fmtA(st,st.a)}</span>${g?`<span class="gain">+${g} XP</span>`:''}</p><p>${st.why}</p>
+    <div class="fb-act"><button class="btn ghost" data-learn="${st.topic}">Theory</button><button class="btn primary" data-next>${P.i+1<P.steps.length?'Next':'Finish'}</button></div>`;
+  fb.scrollIntoView({block:'nearest',behavior:reduce?'auto':'smooth'});
+  $('[data-next]',fb).focus({preventScroll:true});
+});
+
+/* ---------- PLAY: drill ---------- */
+const SP={1:'1 cm lateral to the occipital protuberance',2:'Supraclavicular fossa',3:'Top of the acromioclavicular joint',4:'Lateral antecubital fossa',5:'Thumb, dorsal proximal phalanx',6:'Middle finger, dorsal proximal phalanx',7:'Little finger, dorsal proximal phalanx',8:'Medial antecubital fossa',9:'Apex of the axilla',10:'3rd intercostal space',11:'4th intercostal space (nipple line)',12:'5th intercostal space',13:'Xiphisternum',14:'Quarter way from T6 to T10',15:'Halfway from T6 to T10',16:'Three quarters from T6 to T10',17:'Umbilicus',18:'Halfway from T10 to T12',19:'Midpoint of the inguinal ligament',20:'Halfway from T12 to L2',21:'Anteromedial thigh, midway T12 to L3',22:'Medial femoral condyle',23:'Medial malleolus',24:'Dorsum of the foot, 3rd MTP joint',25:'Lateral heel (calcaneus)',26:'Midpoint of the popliteal fossa',27:'Ischial tuberosity or infragluteal fold',28:'Perianal area, within 1 cm of the mucocutaneous junction'};
+const NK=[['Shoulder flexion, extension, abduction, adduction, internal and external rotation',4],['Elbow supination',4],['Elbow pronation',5],['Wrist flexion',5],['Finger flexion at proximal joint, extension',6],['Thumb flexion, extension and abduction in plane of thumb',6],['Finger flexion at MCP joint',7],['Thumb opposition, adduction and abduction perpendicular to palm',7],['Finger abduction of the index finger',8],['Hip adduction',21],['Hip external rotation',22],['Hip extension, abduction, internal rotation',23],['Knee flexion',23],['Ankle inversion and eversion',23],['Toe MP and IP extension',23],['Hallux and toe DIP and PIP flexion and abduction',24],['Hallux adduction',25]];
+const MG=[['0','Total paralysis'],['1','Palpable or visible contraction'],['2','Full range with gravity eliminated'],['3','Full range against gravity'],['4','Full range against gravity and moderate resistance'],['5','Full range against gravity and full resistance'],['NT','Contracture over 50% of normal range']];
+const SG=[['0','Can\'t tell sharp from dull'],['1','Hypersensitive to light touch'],['2','Same as on the cheek'],['NT','Dermatome covered by a cast']];
+const AD={A:'No sensory or motor function preserved in S4-5.',B:'Sensory but not motor function below the NLI including S4-5, and no motor function more than 3 levels below the motor level on either side.',C:'Motor function preserved, with fewer than half of key muscles below the NLI at grade 3 or more.',D:'Motor function preserved, with at least half of key muscles below the NLI at grade 3 or more.',E:'Normal sensation and motor function in all segments, after a documented SCI.'};
+const RULES=[
+  ['Only deep anal pressure is preserved. Complete or incomplete?','Incomplete',['Complete','Incomplete','Not determinable'],'Any sacral sparing (VAC, DAP, or S4-5 LT/PP) makes it incomplete.','t-comp'],
+  ['In T2–L1, the motor level is taken from…','The sensory level',['The sensory level','The T1 grade','The L2 grade','The other side'],'No key muscles there, so motor follows sensation.','t-ml'],
+  ['A key muscle can be the motor level at grade…','3 or more',['3 or more','4 or more','5 only','2 or more'],'Grade ≥3 with all key muscles above at 5.','t-ml'],
+  ['AIS D needs this share of key muscles below the NLI at ≥3','Half or more',['Half or more','All','More than three','Any one'],'Half or more → D, fewer → C.','t-ais'],
+  ['Maximum LEMS','50',['25','50','56','100'],'25 per leg, 50 total.','t-scores'],
+  ['Maximum pin prick total','112',['56','100','112','128'],'28 dermatomes × 2 points × 2 sides.','t-scores'],
+  ['C2 is abnormal on the left. Left sensory level?','C1',['C1','C2','C3','ND'],'If C2 is abnormal, the level is C1.','t-sl'],
+  ['Motor ZPP applies when…','VAC is absent',['VAC is absent','DAP is absent','AIS is C','Always'],'With VAC present, motor ZPP is NA.','t-zpp'],
+  ['For AIS B, motor function may exist up to how many levels below the motor level?','3',['1','2','3','5'],'More than 3 levels below with sacral sparing makes it C.','t-ais'],
+  ['When are non-key muscles tested?','Apparent AIS B',['Apparent AIS B','Every exam','Only in AIS D','Only with VAC'],'They separate B from C.','t-nonkey'],
+  ['The NLI is…','The most rostral of the four levels',['The most rostral of the four levels','The most caudal of the four levels','The right motor level','The sensory level on the worse side'],'Take the highest of SL R, SL L, ML R, ML L.','t-nli'],
+  ['VAC is present, all else below the NLI is absent. Minimum AIS?','C',['A','B','C','D'],'VAC means motor incomplete: at least C.','t-anal']
+];
+function mcq(p,a,pool,why,topic){const d=shuffle([...new Set(pool)].filter(x=>x!==a)).slice(0,3);return{p,a,opts:shuffle([a,...d]),why,topic}}
+const near=(i,r)=>{const o=[];for(let j=Math.max(1,i-r);j<=Math.min(28,i+r);j++)if(j!==i)o.push(j);return o};
+const GEN={
+  muscles:[
+    ()=>{const k=pick(KEYS);return mcq(`Root level of the ${KEY[k].toLowerCase()}?`,SEG[k],KEYS.map(x=>SEG[x]),`${KEY[k]} = ${SEG[k]}.`,'t-keym')},
+    ()=>{const k=pick(KEYS);return mcq(`Key muscle for ${SEG[k]}?`,KEY[k],KEYS.map(x=>KEY[x]),`${SEG[k]} = ${KEY[k].toLowerCase()}.`,'t-keym')}],
+  dermatomes:[
+    ()=>{const i=1+rnd(28);return mcq(`Key sensory point for ${SEG[i]}?`,SP[i],near(i,3).map(j=>SP[j]),`${SEG[i]}: ${SP[i]}.`,'t-keys')},
+    ()=>{const i=1+rnd(28);return mcq(`“${SP[i]}” tests which dermatome?`,SEG[i],near(i,3).map(j=>SEG[j]),`${SP[i]} = ${SEG[i]}.`,'t-keys')}],
+  grades:[
+    ()=>{const g=pick(MG);return mcq(`Motor grade: “${g[1]}”`,g[0],MG.map(x=>x[0]),`${g[0]} = ${g[1].toLowerCase()}.`,'t-motor')},
+    ()=>{const g=pick(SG);return mcq(`Sensory score: ${g[1].toLowerCase()}`,g[0],SG.map(x=>x[0]),`Score ${g[0]}.`,'t-sens')}],
+  rules:[()=>{const r=pick(RULES);return mcq(r[0],r[1],r[2],r[3],r[4])}],
+  ais:[()=>{const l=pick('ABCDE'.split(''));return mcq(`Which AIS grade? “${AD[l]}”`,l,'ABCDE'.split(''),`AIS ${l}: ${AIS_SUB[l].toLowerCase()}.`,'t-ais')}],
+  nonkey:[()=>{const n=pick(NK);return mcq(`Root level for: ${n[0].toLowerCase()}?`,SEG[n[1]],[4,5,6,7,8,21,22,23,24,25].map(x=>SEG[x]),`${n[0]} = ${SEG[n[1]]}.`,'t-nonkey')}]
+};
+const D={cat:store.get('cat','all'),n:0,ok:0};
+function newDrill(){const cats=D.cat==='all'?Object.keys(GEN):[D.cat];D.q=pick(GEN[pick(cats)])();D.done=false;renderDrill()}
+function renderDrill(){
+  const q=D.q,two=q.opts.every(o=>o.length<=6);
+  $('#drill-card').innerHTML=`<div class="cc-head"><span class="eyebrow">Drill · ${D.ok}/${D.n}</span><span class="streak${S.streak>=3?' hot':''}">Streak ${S.streak} · best ${S.best}</span></div>
+    <h2 class="dr-q">${q.p}</h2>
+    <div class="dr-opts${two?' two':''}">${q.opts.map((o,i)=>`<button class="opt" data-o="${i}">${o}</button>`).join('')}</div>
+    <div class="fb" id="dfb" hidden></div>`;
+}
+$('#drill-card').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.next!=null){newDrill();return}
+  if(b.dataset.learn){openTopic(b.dataset.learn);return}
+  if(b.dataset.o==null||D.done)return;
+  D.done=true;const q=D.q,v=q.opts[+b.dataset.o],ok=v===q.a;D.n++;if(ok)D.ok++;
+  const g=award(ok,5);
+  $$('#drill-card .opt').forEach(o=>{o.disabled=true;const ov=q.opts[+o.dataset.o];if(ov===q.a)o.classList.add('right');else if(o===b)o.classList.add('wrong');else o.classList.add('dim')});
+  const fb=$('#dfb');fb.hidden=false;fb.className='fb '+(ok?'ok':'bad');
+  fb.innerHTML=`<p class="fb-h"><span>${ok?'Correct':'Answer: '+q.a}</span>${g?`<span class="gain">+${g} XP</span>`:''}</p><p>${q.why}</p><div class="fb-act"><button class="btn ghost" data-learn="${q.topic}">Theory</button><button class="btn primary" data-next>Next</button></div>`;
+  $('#drill-card .eyebrow').textContent=`Drill · ${D.ok}/${D.n}`;
+  $('[data-next]',fb).focus({preventScroll:true});
+  if(ok)setTimeout(()=>{if(D.done&&D.q===q&&!$('#drill-ui').hidden)newDrill()},reduce?1400:950);
+});
+
+/* play controls */
+function setMode(m){
+  $$('#mode button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===m)));
+  $('#case-ui').hidden=m!=='case';$('#drill-ui').hidden=m!=='drill';
+  $('#diff-wrap').hidden=m!=='case';$('#cat-wrap').hidden=m!=='drill';
+  store.set('mode',m);
+  if(m==='drill'&&!D.q)newDrill();
+}
+$$('#mode button').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
+$('#diff').value=P.diff;
+$('#diff').addEventListener('change',e=>{P.diff=e.target.value;store.set('diff',P.diff);newCase()});
+$('#cat').value=D.cat;
+$('#cat').addEventListener('change',e=>{D.cat=e.target.value;store.set('cat',D.cat);newDrill()});
+
+/* ---------- LAB ---------- */
+const L={brush:'cycle'};
+function loadLab(ex,name){L.ex=ex;L.name=name;L.edited=false;renderLab()}
+function renderLab(){
+  const c=classify(L.ex);
+  const marks={slR:c.sl.R,slL:c.sl.L,mlR:c.ml.R,mlL:c.ml.L,nli:c.nli};
+  $('#lab-sheet').innerHTML=sheetHTML(L.ex,{edit:true,marks,foot:`<span class="mini">NLI <b>${nm(c.nli)}</b> · AIS <b>${c.ais}</b></span>`});
+  const td=v=>`<td class="${v==null?'na':''}">${nm(v)}</td>`;
+  const p=c.path;
+  let path=`<span class="st">Sacral sparing <b>${p.sacral?'yes':'no'}</b></span>`;
+  if(c.ais==='E')path=`<span class="st">All scores normal</span>`;
+  else if(p.sacral){
+    path+=`<span class="ar">→</span><span class="st">Motor sparing <b>${p.motorInc?'yes':'no'}</b></span>`;
+    if(p.motorInc)path+=`<span class="ar">→</span><span class="st">≥3 below NLI <b>${p.n3}/${p.nk}</b></span>`;
+  }
+  path+=`<span class="ar">→</span><span class="st end">${c.ais}</span>`;
+  $('#lab-res').innerHTML=`
+    <div class="res-top">
+      <div class="ais-badge ais-${c.ais}"><small>AIS</small><b>${c.ais}</b></div>
+      <div class="kv"><small>NLI</small><b>${nm(c.nli)}</b></div>
+      <div class="kv"><small>Injury</small><b>${c.ais==='E'?'Normal':c.complete?'Complete':'Incomplete'}</b></div>
+    </div>
+    <table class="lvt"><thead><tr><th></th><th>Right</th><th>Left</th></tr></thead><tbody>
+      <tr><th>Sensory level</th>${td(c.sl.R)}${td(c.sl.L)}</tr>
+      <tr><th>Motor level</th>${td(c.ml.R)}${td(c.ml.L)}</tr>
+      <tr><th>Sensory ZPP</th>${td(c.zpp.sR)}${td(c.zpp.sL)}</tr>
+      <tr><th>Motor ZPP</th>${td(c.zpp.mR)}${td(c.zpp.mL)}</tr>
+    </tbody></table>
+    <div class="path">${path}</div>
+    <p class="scn">${L.name}${L.edited?' · edited':''}</p>`;
+  const w=c.why;
+  $('#lab-why').innerHTML=`
+    <li><b>Sensory level.</b> R: ${w.slR} L: ${w.slL}</li>
+    <li><b>Motor level.</b> R: ${w.mlR} L: ${w.mlL}</li>
+    <li><b>NLI.</b> ${w.nli}</li>
+    <li><b>Complete?</b> ${w.comp}</li>
+    <li><b>AIS.</b> ${w.ais}</li>
+    <li><b>ZPP.</b> ${w.zpp}</li>`;
+  const t=c.totals,row=(l,v,m)=>`<tr><td>${l}</td><td>${v} <small>/ ${m}</small></td></tr>`;
+  $('#lab-scores').innerHTML=`<table class="scores">
+    ${row('Upper limbs R + L (UEMS)',`${t.UER} + ${t.UEL} = ${t.UER+t.UEL}`,50)}
+    ${row('Lower limbs R + L (LEMS)',`${t.LER} + ${t.LEL} = ${t.LER+t.LEL}`,50)}
+    ${row('Light touch R + L',`${t.LTR} + ${t.LTL} = ${t.LTR+t.LTL}`,112)}
+    ${row('Pin prick R + L',`${t.PPR} + ${t.PPL} = ${t.PPR+t.PPL}`,112)}</table>`;
+}
+$('#lab-sheet').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.tog){L.ex[b.dataset.tog]=!L.ex[b.dataset.tog];L.edited=true;renderLab();$(`#lab-sheet [data-tog="${b.dataset.tog}"]`).focus();return}
+  const {s,f}=b.dataset,i=+b.dataset.i;if(!f)return;
+  const arr=L.ex[s][f],max=f==='m'?5:2;
+  arr[i]=L.brush==='cycle'?(arr[i]===0?max:arr[i]-1):Math.min(+L.brush,max);
+  L.edited=true;renderLab();
+  $(`#lab-sheet [data-s="${s}"][data-f="${f}"][data-i="${i}"]`).focus({preventScroll:true});
+});
+$('#brush').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;L.brush=b.dataset.b;$$('#brush button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)))});
+$('#presets').innerHTML=Object.entries(PRESETS).map(([k,p])=>`<button class="chip" data-p="${k}">${p.name}</button>`).join('');
+$('#presets').addEventListener('click',e=>{const b=e.target.closest('[data-p]');if(b)loadLab(preset(b.dataset.p),PRESETS[b.dataset.p].name)});
+$('#bk-from').innerHTML=SEG.slice(1).map((s,j)=>`<option value="${j+1}">${s}</option>`).join('');
+$('#bk-from').value='9';
+$('#bk-go').addEventListener('click',()=>{
+  const from=+$('#bk-from').value,sides=$('#bk-side').value.split(''),f=$('#bk-field').value,v=+$('#bk-val').value;
+  const sv=Math.min(v,2);
+  setBelow(L.ex,sides,from,f==='s'?{lt:sv,pp:sv}:f==='lt'?{lt:sv}:f==='pp'?{pp:sv}:{m:v});
+  L.edited=true;renderLab();
+});
+$('#lab-normal').addEventListener('click',()=>loadLab(normalExam(),'Normal exam'));
+$('#lab-rand').addEventListener('click',()=>loadLab(genCase('hard'),'Random case'));
+
+/* ---------- LEARN ---------- */
+$('#sp-table').insertAdjacentHTML('beforeend',SEG.slice(1).map((s,j)=>`<tr><td>${s}</td><td>${SP[j+1]}</td></tr>`).join(''));
+$('#nk-table').insertAdjacentHTML('beforeend',NK.map(n=>`<tr><td>${SEG[n[1]]}</td><td>${n[0]}</td></tr>`).join(''));
+function openTopic(id){
+  show('learn');const d=$('#'+id);if(!d)return;d.open=true;
+  requestAnimationFrame(()=>d.scrollIntoView({block:'start',behavior:reduce?'auto':'smooth'}));
+}
+$$('[data-open]').forEach(b=>b.addEventListener('click',()=>openTopic(b.dataset.open)));
+$('#v-learn').addEventListener('click',e=>{const b=e.target.closest('[data-try]');if(!b)return;const k=b.dataset.try;loadLab(preset(k),PRESETS[k].name);show('lab');window.scrollTo(0,0)});
+function setHL(on){document.body.classList.toggle('hl',on);$('#hl-btn').setAttribute('aria-pressed',String(on));store.set('hl',on)}
+$('#hl-btn').addEventListener('click',()=>setHL(!document.body.classList.contains('hl')));
+
+/* ---------- boot ---------- */
+addEventListener('keydown',e=>{
+  if(e.key!=='Enter'||e.target.closest('select'))return;
+  const n=$('#v-play:not([hidden]) .fb:not([hidden]) [data-next]');
+  if(n&&document.activeElement!==n){e.preventDefault();n.click()}
+});
+renderMe();measureTop();
+setHL(store.get('hl',false));
+loadLab(preset('c6b'),PRESETS.c6b.name);
+newCase();
+setMode(store.get('mode','case'));
+const h=(location.hash||'').slice(1);
+show(['play','lab','learn'].includes(h)?h:store.get('view','play'));
+</script>
+</body>
+</html>
